@@ -103,6 +103,11 @@ def he_tokenizer():
     return get_lang_class("he").Defaults.create_tokenizer()
 
 
+@pytest.fixture(scope="session")
+def hr_tokenizer():
+    return get_lang_class("hr").Defaults.create_tokenizer()
+
+
 @pytest.fixture
 def hu_tokenizer():
     return get_lang_class("hu").Defaults.create_tokenizer()
@@ -120,8 +125,24 @@ def it_tokenizer():
 
 @pytest.fixture(scope="session")
 def ja_tokenizer():
-    pytest.importorskip("MeCab")
+    pytest.importorskip("fugashi")
     return get_lang_class("ja").Defaults.create_tokenizer()
+
+
+@pytest.fixture(scope="session")
+def ko_tokenizer():
+    pytest.importorskip("natto")
+    return get_lang_class("ko").Defaults.create_tokenizer()
+
+
+@pytest.fixture(scope="session")
+def lb_tokenizer():
+    return get_lang_class("lb").Defaults.create_tokenizer()
+
+
+@pytest.fixture(scope="session")
+def lt_tokenizer():
+    return get_lang_class("lt").Defaults.create_tokenizer()
 
 
 @pytest.fixture(scope="session")
@@ -155,6 +176,17 @@ def ru_tokenizer():
     return get_lang_class("ru").Defaults.create_tokenizer()
 
 
+@pytest.fixture
+def ru_lemmatizer():
+    pytest.importorskip("pymorphy2")
+    return get_lang_class("ru").Defaults.create_lemmatizer()
+
+
+@pytest.fixture(scope="session")
+def sr_tokenizer():
+    return get_lang_class("sr").Defaults.create_tokenizer()
+
+
 @pytest.fixture(scope="session")
 def sv_tokenizer():
     return get_lang_class("sv").Defaults.create_tokenizer()
@@ -186,3 +218,14 @@ def uk_tokenizer():
 @pytest.fixture(scope="session")
 def ur_tokenizer():
     return get_lang_class("ur").Defaults.create_tokenizer()
+
+
+@pytest.fixture(scope="session")
+def yo_tokenizer():
+    return get_lang_class("yo").Defaults.create_tokenizer()
+
+
+@pytest.fixture(scope="session")
+def zh_tokenizer():
+    pytest.importorskip("jieba")
+    return get_lang_class("zh").Defaults.create_tokenizer()

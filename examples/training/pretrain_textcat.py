@@ -1,9 +1,9 @@
 """This script is experimental.
 
 Try pre-training the CNN component of the text categorizer using a cheap
-language modelling-like objective. Specifically, we load pre-trained vectors
+language modelling-like objective. Specifically, we load pretrained vectors
 (from something like word2vec, GloVe, FastText etc), and use the CNN to
-predict the tokens' pre-trained vectors. This isn't as easy as it sounds:
+predict the tokens' pretrained vectors. This isn't as easy as it sounds:
 we're not merely doing compression here, because heavy dropout is applied,
 including over the input words. This means the model must often (50% of the time)
 use the context in order to predict the word.
@@ -14,11 +14,11 @@ pre-train with the development data, but also not *so* terrible: we're not using
 the development labels, after all --- only the unlabelled text.
 """
 import plac
+import tqdm
 import random
 import spacy
 import thinc.extra.datasets
 from spacy.util import minibatch, use_gpu, compounding
-import tqdm
 from spacy._ml import Tok2Vec
 from spacy.pipeline import TextCategorizer
 import numpy

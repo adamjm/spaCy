@@ -2,7 +2,7 @@
 # coding: utf8
 """Example of training an additional entity type
 
-This script shows how to add a new entity type to an existing pre-trained NER
+This script shows how to add a new entity type to an existing pretrained NER
 model. To keep the example short and simple, only four sentences are provided
 as examples. In practice, you'll need many more — a few hundred would be a
 good start. You will also likely need to mix in examples of other entity
@@ -23,7 +23,7 @@ For more details, see the documentation:
 * Training: https://spacy.io/usage/training
 * NER: https://spacy.io/usage/linguistic-features#named-entities
 
-Compatible with: spaCy v2.0.0+
+Compatible with: spaCy v2.1.0+
 Last tested with: v2.1.0
 """
 from __future__ import unicode_literals, print_function

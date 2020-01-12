@@ -35,7 +35,7 @@ const SEO = ({ description, lang, title, section, sectionTitle, bodyClass }) => 
                 siteMetadata.slogan,
                 sectionTitle
             )
-            const socialImage = getImage(section)
+            const socialImage = siteMetadata.siteUrl + getImage(section)
             const meta = [
                 {
                     name: 'description',
@@ -93,6 +93,7 @@ const SEO = ({ description, lang, title, section, sectionTitle, bodyClass }) => 
 
             return (
                 <Helmet
+                    defer={false}
                     htmlAttributes={{ lang }}
                     bodyAttributes={{ class: bodyClass }}
                     title={pageTitle}
@@ -126,6 +127,7 @@ const query = graphql`
                 title
                 description
                 slogan
+                siteUrl
                 social {
                     twitter
                 }

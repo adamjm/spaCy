@@ -12,7 +12,7 @@ import tarfile
 import gzip
 import zipfile
 import srsly
-from wasabi import Printer
+from wasabi import msg
 
 from ..vectors import Vectors
 from ..errors import Errors, Warnings, user_warning
@@ -24,7 +24,7 @@ except ImportError:
     ftfy = None
 
 
-msg = Printer()
+DEFAULT_OOV_PROB = -20
 
 
 @plac.annotations(
@@ -35,6 +35,13 @@ msg = Printer()
     clusters_loc=("Optional location of brown clusters data", "option", "c", str),
     vectors_loc=("Optional vectors file in Word2Vec format", "option", "v", str),
     prune_vectors=("Optional number of vectors to prune to", "option", "V", int),
+    vectors_name=(
+        "Optional name for the word vectors, e.g. en_core_web_lg.vectors",
+        "option",
+        "vn",
+        str,
+    ),
+    model_name=("Optional name for the model meta", "option", "mn", str),
 )
 def init_model(
     lang,
@@ -44,6 +51,8 @@ def init_model(
     jsonl_loc=None,
     vectors_loc=None,
     prune_vectors=-1,
+    vectors_name=None,
+    model_name=None,
 ):
     """
     Create a new model from raw data, like word frequencies, Brown clusters
@@ -75,10 +84,10 @@ def init_model(
         lex_attrs = read_attrs_from_deprecated(freqs_loc, clusters_loc)
 
     with msg.loading("Creating model..."):
-        nlp = create_model(lang, lex_attrs)
+        nlp = create_model(lang, lex_attrs, name=model_name)
     msg.good("Successfully created model")
     if vectors_loc is not None:
-        add_vectors(nlp, vectors_loc, prune_vectors)
+        add_vectors(nlp, vectors_loc, prune_vectors, vectors_name)
     vec_added = len(nlp.vocab.vectors)
     lex_added = len(nlp.vocab)
     msg.good(
@@ -108,27 +117,34 @@ def open_file(loc):
 
 
 def read_attrs_from_deprecated(freqs_loc, clusters_loc):
-    with msg.loading("Counting frequencies..."):
-        probs, oov_prob = read_freqs(freqs_loc) if freqs_loc is not None else ({}, -20)
-    msg.good("Counted frequencies")
-    with msg.loading("Reading clusters..."):
-        clusters = read_clusters(clusters_loc) if clusters_loc else {}
-    msg.good("Read clusters")
+    if freqs_loc is not None:
+        with msg.loading("Counting frequencies..."):
+            probs, _ = read_freqs(freqs_loc)
+        msg.good("Counted frequencies")
+    else:
+        probs, _ = ({}, DEFAULT_OOV_PROB)  # noqa: F841
+    if clusters_loc:
+        with msg.loading("Reading clusters..."):
+            clusters = read_clusters(clusters_loc)
+        msg.good("Read clusters")
+    else:
+        clusters = {}
     lex_attrs = []
     sorted_probs = sorted(probs.items(), key=lambda item: item[1], reverse=True)
-    for i, (word, prob) in tqdm(enumerate(sorted_probs)):
-        attrs = {"orth": word, "id": i, "prob": prob}
-        # Decode as a little-endian string, so that we can do & 15 to get
-        # the first 4 bits. See _parse_features.pyx
-        if word in clusters:
-            attrs["cluster"] = int(clusters[word][::-1], 2)
-        else:
-            attrs["cluster"] = 0
-        lex_attrs.append(attrs)
+    if len(sorted_probs):
+        for i, (word, prob) in tqdm(enumerate(sorted_probs)):
+            attrs = {"orth": word, "id": i, "prob": prob}
+            # Decode as a little-endian string, so that we can do & 15 to get
+            # the first 4 bits. See _parse_features.pyx
+            if word in clusters:
+                attrs["cluster"] = int(clusters[word][::-1], 2)
+            else:
+                attrs["cluster"] = 0
+            lex_attrs.append(attrs)
     return lex_attrs
 
 
-def create_model(lang, lex_attrs):
+def create_model(lang, lex_attrs, name=None):
     lang_class = get_lang_class(lang)
     nlp = lang_class()
     for lexeme in nlp.vocab:
@@ -142,12 +158,17 @@ def create_model(lang, lex_attrs):
         lexeme.is_oov = False
         lex_added += 1
         lex_added += 1
-    oov_prob = min(lex.prob for lex in nlp.vocab)
-    nlp.vocab.cfg.update({"oov_prob": oov_prob - 1})
+    if len(nlp.vocab):
+        oov_prob = min(lex.prob for lex in nlp.vocab) - 1
+    else:
+        oov_prob = DEFAULT_OOV_PROB
+    nlp.vocab.cfg.update({"oov_prob": oov_prob})
+    if name:
+        nlp.meta["name"] = name
     return nlp
 
 
-def add_vectors(nlp, vectors_loc, prune_vectors):
+def add_vectors(nlp, vectors_loc, prune_vectors, name=None):
     vectors_loc = ensure_path(vectors_loc)
     if vectors_loc and vectors_loc.parts[-1].endswith(".npz"):
         nlp.vocab.vectors = Vectors(data=numpy.load(vectors_loc.open("rb")))
@@ -168,7 +189,10 @@ def add_vectors(nlp, vectors_loc, prune_vectors):
                     lexeme.is_oov = False
         if vectors_data is not None:
             nlp.vocab.vectors = Vectors(data=vectors_data, keys=vector_keys)
-    nlp.vocab.vectors.name = "%s_model.vectors" % nlp.meta["lang"]
+    if name is None:
+        nlp.vocab.vectors.name = "%s_model.vectors" % nlp.meta["lang"]
+    else:
+        nlp.vocab.vectors.name = name
     nlp.meta["vectors"]["name"] = nlp.vocab.vectors.name
     if prune_vectors >= 1:
         nlp.vocab.prune_vectors(prune_vectors)
@@ -181,7 +205,7 @@ def read_vectors(vectors_loc):
     vectors_keys = []
     for i, line in enumerate(tqdm(f)):
         line = line.rstrip()
-        pieces = line.rsplit(" ", vectors_data.shape[1] + 1)
+        pieces = line.rsplit(" ", vectors_data.shape[1])
         word = pieces.pop(0)
         if len(pieces) != vectors_data.shape[1]:
             msg.fail(Errors.E094.format(line_num=i, loc=vectors_loc), exits=1)
